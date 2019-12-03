@@ -13,6 +13,7 @@ use subtle_encoding::base64;
 /// Validator set contains a vector of validators
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Set {
+    #[serde(deserialize_with = "parse_vals")]
     validators: Vec<Info>,
 }
 
@@ -158,6 +159,15 @@ impl From<ProposerPriority> for i64 {
     fn from(priority: ProposerPriority) -> i64 {
         priority.value()
     }
+}
+
+// TODO: maybe add a type (with an Option<Vec<Info>> field) instead
+// for light client integration tests only
+fn parse_vals<'de, D>(d: D) -> Result<Vec<Info>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Deserialize::deserialize(d).map(|x: Option<_>| x.unwrap_or_default())
 }
 
 impl<'de> Deserialize<'de> for ProposerPriority {

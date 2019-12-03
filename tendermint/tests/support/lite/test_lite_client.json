@@ -15470,7 +15470,7 @@
  									"timestamp": "2019-11-02T15:04:15Z",
  									"validator_address": "015CE1420A50EBE149F70C67E9578E6AF9162137",
  									"validator_index": "0",
- 									"signature": "d3JvbmcgYWRkcmVzcw=="
+ 									"signature": "lIbeqg3fQCHDWI4jVcrmpnHQPMP4JmXsdXTEgxrh7vp7c0smSdX3p0yC1M049XLO3GzBqU+K6B+G8o+YYRkRBQ=="
  								}
  							]
  						}
@@ -17517,7 +17517,7 @@
  								"block": "0",
  								"app": "0"
  							},
- 							"chain_id": "wrong chain id",
+ 							"chain_id": "wrong_chain_id",
  							"height": "2",
  							"time": "2019-11-02T15:04:10Z",
  							"num_txs": "0",
@@ -19467,7 +19467,7 @@
  							"app_hash": "6170705F68617368",
  							"last_results_hash": "",
  							"evidence_hash": "",
- 							"proposer_address": "77726F6E672070726F706F7365722061646472657373"
+ 							"proposer_address": "015CE1420A50EBE149F70C67E9578E6AF9162137"
  						},
  						"commit": {
  							"block_id": {

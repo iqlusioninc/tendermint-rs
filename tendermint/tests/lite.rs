@@ -1,3 +1,4 @@
+use failure::_core::convert::TryFrom;
 use serde::{de::Error as _, Deserialize, Deserializer, Serialize};
 use serde_json;
 use std;
@@ -56,18 +57,22 @@ pub struct SignedHeader {
 // Notes/Feedback:
 // - the JSON contains for instance invalid signatures, this makes parsing the whole JSON
 // fail in Rust:
-//
 // e.g. `Result::unwrap()` on an `Err` value: Error("signature error", line: 15474, column: 10)'
 //
 // - similarly some fields that are "null" in the header or the validator_set
 //
-// - also "wrong chain id"
+// - also test case: "wrong chain id"
 // - same with an invalid proposer_address
 //
-// Suggestion: maybe put the invalid stuff that is invalid *not* from the lite client perspective
+// Suggestions:
+// - maybe put the invalid stuff that is invalid *not* from the lite client perspective
 // but invalid data in separate file(s);
 // in Rust we often already fail while decoding which makes decoding the
 // test-file a bit useless (as it will err before we ran the tests that work)
+//
+// - AppHash: []byte("app_hash") (hex 6170705F68617368) is not a valid sha256 hash
+// (and in Rust will parse as: 6170705F68617368000000000000000000000000000000000000000000000000
+// which produces a different header hash as the Golang version.
 
 fn read_json_fixture(name: &str) -> String {
     fs::read_to_string(PathBuf::from("./tests/support/lite/").join(name.to_owned() + ".json"))
@@ -77,7 +82,90 @@ fn read_json_fixture(name: &str) -> String {
 #[test]
 fn language_agnostic_test_cases() {
     let cases: TestCases = serde_json::from_str(&read_json_fixture("test_lite_client")).unwrap();
-    println!("cases: {:?}", cases);
+    for (i, tc) in cases.test_cases.iter().enumerate() {
+        match tc.name.as_ref() {
+            "verify" => test_verify(i, tc),
+            _ => println!("No such test found: {} ", tc.name),
+        }
+    }
+}
+
+fn test_verify(tci: usize, tc: &TestCase) {
+    println!("Running tc number {}: {}", tci, tc.description);
+    for (i, input) in tc.input.iter().enumerate() {
+        if i == 0 {
+            //            h1 *types.SignedHeader,
+            //            h1NextVals *types.ValidatorSet,
+            //            h2 *types.SignedHeader,
+            //            h2Vals *types.ValidatorSet,
+            //
+            //            testCase.Initial.SignedHeader,
+            //            &testCase.Initial.NextValidatorSet,
+            //            input.SignedHeader,
+            //            &input.ValidatorSet,
+            match lite::verify_trusting(
+                tc.initial.signed_header.header.as_ref().unwrap().clone(),
+                rpc::endpoint::commit::SignedHeader::try_from(tc.initial.signed_header.clone())
+                    .unwrap(),
+                input.validator_set.clone(),
+                tc.initial.next_validator_set.clone(),
+            ) {
+                Err(e) => {
+                    //                println!("Res expected: {:?}", res.err().unwrap());
+                    //                println!("Res expected: {:?}", tc.expected_output.as_ref());
+                    //                println!("header: {:?}", tc.initial.signed_header.header.clone());
+                    //                println!("commit: {:?}", sh.unwrap());
+                    println!("err {:?}", e);
+                    assert_eq!(tc.expected_output.is_none(), false);
+                    println!(
+                        "expected output: {:?}",
+                        tc.expected_output.as_ref().unwrap().get(0).unwrap()
+                    );
+                }
+                Ok(()) => match &tc.expected_output {
+                    None => assert_eq!(tc.expected_output.is_none(), true),
+                    Some(eo) => println!(
+                        "({}, {}): No error verifying but expected output: {:?}",
+                        tci,
+                        i,
+                        eo.get(0).unwrap()
+                    ),
+                },
+            }
+        } else {
+            let sh = rpc::endpoint::commit::SignedHeader::try_from(input.signed_header.clone());
+            if sh.is_err() {
+                println!("Error parsing signedHeader: {:?}  ", sh.err().unwrap());
+                continue;
+            }
+
+            let prev_input = tc.input.get(i - 1).unwrap();
+            match lite::verify_trusting(
+                sh.clone().unwrap().header,
+                sh.clone().unwrap(),
+                prev_input.next_validator_set.clone(),
+                input.validator_set.clone(),
+            ) {
+                Err(e) => {
+                    //                println!("Res expected: {:?}", res.err().unwrap());
+                    //                println!("Res expected: {:?}", tc.expected_output.as_ref());
+                    //                println!("header: {:?}", tc.initial.signed_header.header.clone());
+                    //                println!("commit: {:?}", sh.unwrap());
+                    println!("err {:?}", e);
+                    assert_eq!(tc.expected_output.is_none(), false);
+                }
+                Ok(()) => match &tc.expected_output {
+                    None => assert_eq!(tc.expected_output.is_none(), true),
+                    Some(eo) => println!(
+                        "({}, {}):No error verifying but expected output: {:?}",
+                        tci,
+                        i,
+                        eo.get(i).unwrap()
+                    ),
+                },
+            }
+        }
+    }
 }
 
 #[test]
@@ -105,5 +193,18 @@ impl<'de> Deserialize<'de> for Duration {
 impl From<Duration> for std::time::Duration {
     fn from(d: Duration) -> std::time::Duration {
         std::time::Duration::from_nanos(d.0)
+    }
+}
+
+impl TryFrom<SignedHeader> for rpc::endpoint::commit::SignedHeader {
+    type Error = &'static str;
+    fn try_from(sh: SignedHeader) -> Result<Self, Self::Error> {
+        match sh.header {
+            Some(header) => match sh.commit {
+                Some(commit) => Ok(rpc::endpoint::commit::SignedHeader { header, commit }),
+                None => Err("Missing commit"),
+            },
+            None => Err("Missing header"),
+        }
     }
 }

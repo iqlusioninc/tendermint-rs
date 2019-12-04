@@ -48,6 +48,11 @@ where
 
     // ensure the commit matches the header.
     if header.hash() != commit.header_hash() {
+        println!(
+            "signedHeader commit signs block {:?}, header is block {:?}",
+            commit.header_hash(),
+            header.hash()
+        );
         return Err(Error::InvalidCommitValue);
     }
 

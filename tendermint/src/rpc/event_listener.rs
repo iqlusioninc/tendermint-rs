@@ -122,21 +122,22 @@ pub struct ResultEvent {
     events: Option<HashMap<String, Vec<String>>>,
 }
 
-impl ResultEvent {	
-    /// Extract events from TXEvent if event matches are type query	
-    pub fn extract_events(	
-        &self,	
-        action_query: &str,	
-    ) -> Result<HashMap<String, Vec<String>>, Box<dyn stdError>> {	
-        if let Some(message_action) = self.events.get("message.action") {	
-            if message_action.contains(&action_query.to_owned()) {	
-                return Ok(self.events.clone());	
-            }	
-        }	
-        Err("Incorrect Event Type".into())	
+impl ResultEvent {
+    /// Extract events from TXEvent if event matches are type query
+    pub fn extract_events(
+        &self,
+        action_query: &str,
+    ) -> Result<HashMap<String, Vec<String>>, Box<dyn stdError>> {
+        if let Some(ref events) = self.events {
+            if let Some(message_action) = events.get("message.action") {
+                if message_action.contains(&action_query.to_owned()) {
+                    return Ok(events.clone());
+                }
+            }
+        }
+        Err("Incorrect Event Type".into())
     }
 }
-
 
 impl response::Response for ResultEvent {}
 

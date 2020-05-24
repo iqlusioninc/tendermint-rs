@@ -161,19 +161,20 @@ mod rpc {
 
         // Loop here is helpful when debugging parsing of JSON events
         // loop{
-        let resp = client.get_event().await.unwrap().unwrap();
+        let resp = client.get_event().await.unwrap();
         dbg!(&resp);
         // }
-        match resp {
-            TMEventData::EventDataNewBlock(nb) => {
+        match resp.data {
+            Some(TMEventData::EventDataNewBlock(nb)) => {
                 dbg!("got EventDataNewBlock: {:?}", nb);
             }
-            TMEventData::EventDataTx(tx) => {
+            Some(TMEventData::EventDataTx(tx)) => {
                 dbg!("got EventDataTx: {:?}", tx);
             }
-            TMEventData::GenericJSONEvent(v) => {
+            Some(TMEventData::GenericJSONEvent(v)) => {
                 panic!("got a GenericJSONEvent: {:?}", v);
             }
+            None => {panic!("got a event without data")}
         }
     }
 }
